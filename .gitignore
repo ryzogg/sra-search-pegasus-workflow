@@ -1,0 +1,6 @@
+.project
+.pydevproject
+pegasus.properties
+wf-output
+wf-scratch
+workflow.yml

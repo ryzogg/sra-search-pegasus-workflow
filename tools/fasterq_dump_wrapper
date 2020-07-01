@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -e
+
+# a rewquirement for the current sratools release
+vdb-config --restore-defaults
+
+time fasterq-dump "$@"
+
+echo
+echo
+ls -lh
+

@@ -1,0 +1,21 @@
+#!/bin/bash
+
+set -e
+
+SRA_ID=$1
+
+#fastq-dump --log-level info --outdir $DIR --skip-technical  --readids --read-filter pass --dumpbase --split-files --clip $SRA_ID.sra
+
+bowtie2 -p 1 -q --no-unal -x reference -1 *_1.fastq -2 *_2.fastq | samtools view -bS - | samtools sort -T tmp -O BAM -o $SRA_ID.bam -
+    
+echo
+ls -l
+echo
+
+samtools index $SRA_ID.bam
+
+echo
+ls -l
+echo
+
+
