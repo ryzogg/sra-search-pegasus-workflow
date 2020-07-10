@@ -7,6 +7,7 @@ Sample Pegasus workflow for searching the SRA database
 import argparse
 import logging
 import os
+import shutil
 import sys
 
 from Pegasus.api import *
@@ -14,6 +15,9 @@ from Pegasus.api import *
 logging.basicConfig(level=logging.DEBUG)
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
+# need to know where Pegasus is installed for notifications
+PEGASUS_HOME = shutil.which('pegasus-version')
+PEGASUS_HOME = os.path.dirname(os.path.dirname(PEGASUS_HOME))
 
 def add_merge_jobs(wf, parents):
     '''
@@ -75,9 +79,14 @@ def generate_wf():
     # set the concurrency limit for the download jobs, and send some extra usage
     # data to the Pegasus developers
     props = Properties()
-    props['dagman.fasterq-dump.maxjobs'] = '5'                                                               
+    props['dagman.fasterq-dump.maxjobs'] = '20'
     props['pegasus.catalog.workflow.amqp.url'] = 'amqp://friend:donatedata@msgs.pegasus.isi.edu:5672/prod/workflows'
     props.write() 
+    
+    # --- Event Hooks ---------------------------------------------------------
+
+    # get emails on all events at the workflow level
+    wf.add_shell_hook(EventType.ALL, '{}/share/pegasus/notification/email'.format(PEGASUS_HOME))
     
     # --- Transformations -----------------------------------------------------
     
@@ -152,6 +161,7 @@ def generate_wf():
     index_job.add_outputs(*ref_files, stage_out=False)
     wf.add_jobs(index_job)
 
+    # create jobs for each SRA ID
     fh = open(args.sra_id_list)
     for line in fh:
         sra_id = line.strip()
