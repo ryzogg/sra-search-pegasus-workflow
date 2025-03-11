@@ -2,10 +2,17 @@
 
 set -e
 
+LOG_FILE = "output.log"
+
 # a rewquirement for the current sratools release
 vdb-config --restore-defaults
 
+start_time=$(date +%s)
 time fasterq-dump "$@"
+
+end_time=$(date +%s)
+elapsed_time=$((end_time - start_time))
+echo "Time taken for fasterq-dump: $elapsed_time seconds" | tee -a $LOG_FILE
 
 echo
 echo

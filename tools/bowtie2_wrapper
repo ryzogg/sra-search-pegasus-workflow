@@ -3,16 +3,27 @@
 set -e
 
 SRA_ID=$1
-
+LOG_FILE = 'output.log'
 #fastq-dump --log-level info --outdir $DIR --skip-technical  --readids --read-filter pass --dumpbase --split-files --clip $SRA_ID.sra
 
+start_bowtie_time=$(date +%s)
 bowtie2 -p 1 -q --no-unal -x reference -1 *_1.fastq -2 *_2.fastq | samtools view -bS - | samtools sort -T tmp -O BAM -o $SRA_ID.bam -
-    
+
+end_bowtie_time=$(date +%s)
+elapsed_bowtie_time=$((end_bowtie_time - start_bowtie_time))
+echo "Time taken for bowtie2 and samtools: $elapsed_bowtie_time seconds" | tee -a $LOG_FILE
+
 echo
 ls -l
 echo
 
+start_index_time=$(date +%s)
+
 samtools index $SRA_ID.bam
+
+end_index_time=$(date +%s)
+elapsed_index_time=$((end_index_time - start_index_time))
+echo "Time taken for indexing: $elapsed_index_time seconds" | tee -a $LOG_FILE
 
 echo
 ls -l
