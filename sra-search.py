@@ -9,15 +9,18 @@ import logging
 import os
 import shutil
 import sys
+import time
 
 from Pegasus.api import *
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.ERROR)
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 # need to know where Pegasus is installed for notifications
-PEGASUS_HOME = shutil.which('pegasus-version')
-PEGASUS_HOME = os.path.dirname(os.path.dirname(PEGASUS_HOME))
+pegasus_plan_path = shutil.which('pegasus-plan')
+PEGASUS_HOME = "/scratch/rzogg/miniconda/envs/100genome/lib/python3.10/site-packages/Pegasus"
+
+#PEGASUS_HOME = os.path.dirname(os.path.dirname(PEGASUS_HOME))
 
 def add_merge_jobs(wf, parents):
     '''
@@ -26,7 +29,9 @@ def add_merge_jobs(wf, parents):
     parents is a list of jobs, for which all outputs will be
     in the resulting tarball
     '''
-    
+
+    start_time = time.time()
+
     max_parents = 25
     final_job = False
     level = 1
@@ -55,8 +60,11 @@ def add_merge_jobs(wf, parents):
         # next round
         level += 1
         parents = children
+        
+        end_time = time.time()
+        print(f"Merging time: {end_time - start_time:3f} seconds")
 
-
+    
 def generate_wf():
     '''
     Main function that parses arguments and generates the pegasus
@@ -70,6 +78,8 @@ def generate_wf():
                         help='Specifies the fasta file to use as a reference for the searc')
     args = parser.parse_args(sys.argv[1:])
     
+    start_time = time.time()
+
     wf = Workflow('sra-search')
     tc = TransformationCatalog()
     rc = ReplicaCatalog()
@@ -104,9 +114,12 @@ def generate_wf():
                        pfn='/opt/bowtie2-2.2.9/bowtie2-build',
                        is_stageable=False
                     )
+
+
     bowtie2_build.add_profiles(Namespace.CONDOR, key='request_memory', value='1 GB')
+
     tc.add_transformations(bowtie2_build)
-    
+
     bowtie2 = Transformation(
                   'bowtie2',
                   site='local',
@@ -114,9 +127,10 @@ def generate_wf():
                   pfn=BASE_DIR + '/tools/bowtie2_wrapper',
                   is_stageable=True
               )
+      
     bowtie2.add_profiles(Namespace.CONDOR, key='request_memory', value='2 GB')
     tc.add_transformations(bowtie2)
-
+    
     fasterq_dump = Transformation(
                       'fasterq-dump',
                        site='local',
@@ -124,6 +138,7 @@ def generate_wf():
                        pfn=BASE_DIR + '/tools/fasterq_dump_wrapper',
                        is_stageable=True
                      )
+      
     fasterq_dump.add_profiles(Namespace.CONDOR, key='request_memory', value='1 GB')
     # this one is used to limit the number of concurrent downloads
     fasterq_dump.add_profiles(Namespace.DAGMAN, key='category', value='fasterq-dump')
@@ -136,9 +151,9 @@ def generate_wf():
                 pfn=BASE_DIR + '/tools/merge',
                 is_stageable=True
             )
+    
     merge.add_condor_profile(request_memory='1 GB')
     tc.add_transformations(merge)
-
 
     # --- Workflow -----------------------------------------------------
 
@@ -195,7 +210,12 @@ def generate_wf():
     try:
         wf.add_transformation_catalog(tc)
         wf.add_replica_catalog(rc)
+        
         wf.plan(submit=True)
+
+        end_time = time.time()
+        print(f"Total workflow execution time: {end_time - start_time:.2f} seconds")
+
     except PegasusClientError as e:
         print(e.output)
 
